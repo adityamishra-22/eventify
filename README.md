@@ -1,40 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+---
 
-## Getting Started
+# Eventify
 
-First, run the development server:
+**Eventify** is a web application built with **Next.js** and **React**, designed to streamline the process of creating, managing, and booking team activities. It allows users to input activity details, location information, and contact details. The app also provides form validation, confirmation modals, and stores activities in-memory for a smooth user experience.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Create Activities**: Easily input details like activity name, category, description, and type.
+- **Location Management**: Provide activity-specific location details, including address, city, state, and contact information.
+- **Responsive Design**: Built with **Tailwind CSS** for a clean and responsive UI.
+- **Validation**: Form validation ensures that all required fields are filled before submission.
+- **Confirmation Modal**: Upon successful form submission, users are shown a confirmation modal.
+- **In-Memory Database**: Activities are stored in an in-memory database, making it fast and easy to manage activities.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend**:  
+  - **Next.js**: React-based framework for server-side rendering and static site generation.
+  - **React**: JavaScript library for building UI components.
+  - **Tailwind CSS**: Utility-first CSS framework for styling.
+  - **TypeScript**: Provides type safety for the codebase.
+  - **React Phone Number Input**: For formatting and validating phone numbers.
 
-## Learn More
+## Installation
 
-To learn more about Next.js, take a look at the following resources:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/eventify.git
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. Navigate to the project directory:
+   ```bash
+   cd eventify
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Deploy on Vercel
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+5. Open your browser and visit:
+   ```
+   http://localhost:3000
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Features Breakdown
 
+### 1. **Activity Form**
+- **Fields**: Activity Name, Category, Description, Type, Location, Minimum Members, and Maximum Members.
+- **Validation**: Ensures that all fields are filled and that the minimum number of members is less than the maximum.
 
-### Live Deployment
-🔗 [mammothy-assignment.vercel.app](https://mammothy-assignment.vercel.app)
+### 2. **Location Form**
+- **Fields**: Address Line 1, Address Line 2, ZIP Code, City, State, Contact Number, Contact Name.
+- **Phone Number Input**: Uses `react-phone-number-input` to validate and format phone numbers.
+
+### 3. **Modals**
+- **Confirmation Modal**: After the form submission, a modal appears confirming the activity has been successfully added.
+
+### 4. **Database Simulation**
+- Activities are stored in an in-memory array, allowing you to add, retrieve, and manage activities on the go.
+
+## Usage
+
+1. **Add an Activity**: Enter details such as the activity name, category, and number of members.
+2. **Provide Location Details**: After submitting the activity, provide location-specific details like address and contact information.
+3. **Submit**: Upon successful submission, a modal will appear confirming your entry.
+
+## Contributing
+
+If you want to contribute to the development of **Eventify**, you are welcome to submit issues and pull requests. Here's how you can contribute:
+
+1. Fork the repository.
+2. Create a new branch for your feature or bug fix.
+3. Make your changes.
+4. Commit your changes and push to your fork.
+5. Create a pull request with a clear description of the changes.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---

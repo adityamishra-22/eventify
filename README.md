@@ -26,7 +26,7 @@
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/eventify.git
+   git clone https://github.com/adi22mishra/eventify.git
    ```
 
 2. Navigate to the project directory:

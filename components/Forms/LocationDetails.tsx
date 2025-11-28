@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import "react-phone-number-input/style.css";
 import PhoneInput from "react-phone-number-input";
 import FormSubmitModal from "../FormSubmitModal";
 
 const LocationDetails = () => {
-  const [showModal, setShowModal] = useState(false); 
+  const [showModal, setShowModal] = useState(false);
   const [formdata, setFormData] = useState({
     addressLine1: "",
     addressLine2: "",
@@ -25,7 +24,7 @@ const LocationDetails = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formdata, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" }); 
+    setErrors({ ...errors, [e.target.name]: "" });
   };
 
   const validateForm = () => {
@@ -67,7 +66,7 @@ const LocationDetails = () => {
     e.preventDefault();
 
     if (!validateForm()) {
-      return; 
+      return;
     }
 
     console.log("Form submitted:", formdata);
@@ -76,10 +75,13 @@ const LocationDetails = () => {
 
   return (
     <div>
-      <h2 className="font-inter text-xl font-bold text-gray-900">Location Details</h2>
-      <div className="flex pb-4">Please specify the address for where the activity takes place.</div>
+      <h2 className="font-inter text-xl font-bold text-gray-900">
+        Location Details
+      </h2>
+      <div className="flex pb-4">
+        Please specify the address for where the activity takes place.
+      </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        
         {/* Address Inputs */}
         <label>
           Address Line 1 <span className="text-red-600">*</span>
@@ -92,7 +94,9 @@ const LocationDetails = () => {
           value={formdata.addressLine1}
           onChange={handleChange}
         />
-        {errors.addressLine1 && <p className="text-red-500">{errors.addressLine1}</p>}
+        {errors.addressLine1 && (
+          <p className="text-red-500">{errors.addressLine1}</p>
+        )}
 
         <label>Address Line 2</label>
         <input
@@ -153,8 +157,12 @@ const LocationDetails = () => {
         <div className="w-full h-[0.1rem] bg-gray-100 my-5"></div>
 
         {/* Contact Details */}
-        <h2 className="font-inter text-xl font-bold text-gray-900">Contact Details</h2>
-        <div className="flex pb-4">Please provide contact information for this activity.</div>
+        <h2 className="font-inter text-xl font-bold text-gray-900">
+          Contact Details
+        </h2>
+        <div className="flex pb-4">
+          Please provide contact information for this activity.
+        </div>
 
         <div className="flex gap-4">
           <PhoneInput
@@ -163,11 +171,13 @@ const LocationDetails = () => {
             value={formdata.contactNumber}
             onChange={(value) => {
               setFormData({ ...formdata, contactNumber: value || "" });
-              setErrors({ ...errors, contactNumber: "" }); 
+              setErrors({ ...errors, contactNumber: "" });
             }}
             className="w-[20rem] p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          {errors.contactNumber && <p className="text-red-500">{errors.contactNumber}</p>}
+          {errors.contactNumber && (
+            <p className="text-red-500">{errors.contactNumber}</p>
+          )}
 
           <input
             type="text"
@@ -180,10 +190,13 @@ const LocationDetails = () => {
         </div>
 
         <div className=" flex  gap-3 mt-6">
-            <button className="p-2 px-6  border-gray-100 border-[0.1rem]  rounded-full">
-                Previous
-            </button>
-          <button type="submit" className="p-2 px-6 bg-black text-white rounded-full">
+          <button className="p-2 px-6  border-gray-100 border-[0.1rem]  rounded-full">
+            Previous
+          </button>
+          <button
+            type="submit"
+            className="p-2 px-6 bg-black text-white rounded-full"
+          >
             Submit
           </button>
         </div>

@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import React, { useState } from "react";
 import ActivityDetails from "./Forms/ActivityDetails";
 import LocationDetails from "./Forms/LocationDetails";
@@ -31,7 +31,7 @@ const SideBar = () => {
       <div className="flex-1 p-6 ">
         {activeScreen === "activity" && (
           <div>
-            <ActivityDetails/>
+            <ActivityDetails />
           </div>
         )}
         {activeScreen === "location" && (

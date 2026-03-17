@@ -38,7 +38,9 @@ const SideBar = () => {
       </div>
 
       <div className="flex-1 p-6">
-        {activeScreen === "activity" && <ActivityDetails />}
+        {activeScreen === "activity" && (
+          <ActivityDetails onNext={() => setActiveScreen("location")} />
+        )}
         {activeScreen === "location" && (
           <LocationDetails onBack={() => setActiveScreen("activity")} />
         )}

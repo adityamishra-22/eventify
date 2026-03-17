@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import LocationDetails from "./LocationDetails";
 import {
   Activity,
   getActivityDraft,
@@ -8,10 +7,14 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface ActivityDetailsProps {
+  onNext: () => void;
+}
+
 interface FormData {
   activityName: string;
-  categoryOption: string; // one of the preset options OR "Others"
-  categoryCustom: string; // free-text when "Others" is selected
+  categoryOption: string;
+  categoryCustom: string;
   description: string;
   type: string;
   location: string;
@@ -32,11 +35,6 @@ const CATEGORY_OPTIONS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Map a stored category string back to { categoryOption, categoryCustom }.
- * If the stored value is one of the preset options it goes into categoryOption.
- * Anything else is treated as a custom "Others" value.
- */
 function decomposeCategory(stored: string): {
   categoryOption: string;
   categoryCustom: string;
@@ -48,9 +46,6 @@ function decomposeCategory(stored: string): {
   return { categoryOption: "Others", categoryCustom: stored };
 }
 
-/**
- * Derive the final category string to persist from the two fields.
- */
 function composeCategory(option: string, custom: string): string {
   if (option === "Others") return custom.trim();
   return option;
@@ -58,9 +53,7 @@ function composeCategory(option: string, custom: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-function ActivityDetails() {
-  const [showLocationDetails, setShowLocationDetails] = useState(false);
-
+function ActivityDetails({ onNext }: ActivityDetailsProps) {
   const [formData, setFormData] = useState<FormData>(() => {
     const draft = getActivityDraft();
     if (draft) {
@@ -94,7 +87,7 @@ function ActivityDetails() {
 
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Keep the draft in sync whenever form changes (auto-save)
+  // Auto-save draft on every change
   useEffect(() => {
     saveActivityDraft({
       activityName: formData.activityName,
@@ -134,7 +127,6 @@ function ActivityDetails() {
     setFormData((prev: FormData) => ({
       ...prev,
       categoryOption: value,
-      // Clear custom text when switching away from Others
       categoryCustom: value !== "Others" ? "" : prev.categoryCustom,
     }));
     setErrors((prev: FormErrors) => ({
@@ -207,7 +199,6 @@ function ActivityDetails() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Persist the validated draft before moving on
     saveActivityDraft({
       activityName: formData.activityName.trim(),
       category: composeCategory(
@@ -221,14 +212,10 @@ function ActivityDetails() {
       maximumMembers: Number(formData.maximumMembers),
     });
 
-    setShowLocationDetails(true);
+    onNext(); // ✅ tells the parent to switch the step
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
-
-  if (showLocationDetails) {
-    return <LocationDetails onBack={() => setShowLocationDetails(false)} />;
-  }
 
   return (
     <div>

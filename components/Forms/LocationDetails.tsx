@@ -11,8 +11,6 @@ import {
   LocationDraft,
 } from "../../database/database";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type FormData = LocationDraft;
 
 type FormErrors = Partial<
@@ -21,8 +19,6 @@ type FormErrors = Partial<
     string
   >
 >;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildInitialState(): FormData {
   const draft = getLocationDraft();
@@ -37,7 +33,19 @@ function buildInitialState(): FormData {
   };
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function saveToLocalStorage(activityData: object, locationData: object) {
+  let existing = [];
+  try {
+    existing = JSON.parse(localStorage.getItem("activities") ?? "[]");
+    if (!Array.isArray(existing)) existing = [];
+  } catch {
+    existing = [];
+  }
+
+  const newRecord = { ...activityData, ...locationData };
+  existing.push(newRecord);
+  localStorage.setItem("activities", JSON.stringify(existing));
+}
 
 interface LocationDetailsProps {
   onBack: () => void;
@@ -48,33 +56,26 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
   const [formData, setFormData] = useState<FormData>(buildInitialState);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // ─── Handlers ────────────────────────────────────────────────────────────
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev: FormData) => ({
-      ...prev,
-      [name as keyof FormData]: value,
-    }));
+    const updated = { ...formData, [name as keyof FormData]: value };
+    setFormData(updated);
     setErrors((prev: FormErrors) => ({ ...prev, [name]: "" }));
-    // Auto-save draft
-    saveLocationDraft({ ...formData, [name]: value });
+    saveLocationDraft(updated);
   };
 
   const handlePhoneChange = (value: string | undefined) => {
     const phone = value ?? "";
-    setFormData((prev: FormData) => ({ ...prev, contactNumber: phone }));
+    const updated = { ...formData, contactNumber: phone };
+    setFormData(updated);
     setErrors((prev: FormErrors) => ({ ...prev, contactNumber: "" }));
-    saveLocationDraft({ ...formData, contactNumber: phone });
+    saveLocationDraft(updated);
   };
 
   const handleBack = () => {
-    // Persist whatever has been typed so ActivityDetails can restore itself
     saveLocationDraft(formData);
     onBack();
   };
-
-  // ─── Validation ──────────────────────────────────────────────────────────
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -91,17 +92,14 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ─── Submit ───────────────────────────────────────────────────────────────
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Persist location draft
-    saveLocationDraft(formData);
-
-    // Finalize: push validated activity to the database
     const activityDraft = getActivityDraft();
+
+    saveToLocalStorage(activityDraft ?? {}, formData);
+
     if (activityDraft) {
       addActivity({
         activityName: activityDraft.activityName ?? "",
@@ -114,14 +112,11 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
       });
     }
 
-    // Clear drafts after successful finalization
     clearActivityDraft();
     clearLocationDraft();
 
     setShowModal(true);
   };
-
-  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div>
@@ -133,7 +128,6 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
       </div>
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        {/* Address Line 1 */}
         <label>
           Address Line 1 <span className="text-red-600">*</span>
         </label>
@@ -149,7 +143,6 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
           <p className="text-red-500">{errors.addressLine1}</p>
         )}
 
-        {/* Address Line 2 */}
         <label>Address Line 2</label>
         <input
           className="w-[40rem] p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -160,7 +153,6 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
           onChange={handleChange}
         />
 
-        {/* ZIP Code */}
         <label>
           ZIP Code <span className="text-red-600">*</span>
         </label>
@@ -174,7 +166,6 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
         />
         {errors.zipCode && <p className="text-red-500">{errors.zipCode}</p>}
 
-        {/* City & State */}
         <div className="flex gap-4">
           <div className="flex flex-col">
             <label>
@@ -209,7 +200,6 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
 
         <div className="w-full h-[0.1rem] bg-gray-100 my-5" />
 
-        {/* Contact Details */}
         <h2 className="font-inter text-xl font-bold text-gray-900">
           Contact Details
         </h2>
@@ -243,9 +233,7 @@ function LocationDetails({ onBack }: LocationDetailsProps) {
           />
         </div>
 
-        {/* Navigation */}
         <div className="flex gap-3 mt-6">
-          {/* type="button" prevents accidental form submission */}
           <button
             type="button"
             onClick={handleBack}

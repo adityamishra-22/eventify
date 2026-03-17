@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from "react";
 import LocationDetails from "./LocationDetails";
-import { Activity, getActivityByName, addActivity } from "../../database/database";
+import {
+  Activity,
+  getActivityDraft,
+  saveActivityDraft,
+} from "../../database/database";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FormData {
   activityName: string;
-  category: string;
+  categoryOption: string; // one of the preset options OR "Others"
+  categoryCustom: string; // free-text when "Others" is selected
   description: string;
   type: string;
   location: string;
@@ -12,259 +19,414 @@ interface FormData {
   maximumMembers: string;
 }
 
-const ActivityDetails: React.FC = () => {
+type FormErrors = Partial<Record<keyof FormData | "members", string>>;
+
+const CATEGORY_OPTIONS = [
+  "Adventure & Games",
+  "Creative Expression",
+  "Food & Drink",
+  "Learning & Development",
+  "Sports and Fitness",
+  "Volunteering",
+] as const;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Map a stored category string back to { categoryOption, categoryCustom }.
+ * If the stored value is one of the preset options it goes into categoryOption.
+ * Anything else is treated as a custom "Others" value.
+ */
+function decomposeCategory(stored: string): {
+  categoryOption: string;
+  categoryCustom: string;
+} {
+  if (!stored) return { categoryOption: "", categoryCustom: "" };
+  if ((CATEGORY_OPTIONS as readonly string[]).includes(stored)) {
+    return { categoryOption: stored, categoryCustom: "" };
+  }
+  return { categoryOption: "Others", categoryCustom: stored };
+}
+
+/**
+ * Derive the final category string to persist from the two fields.
+ */
+function composeCategory(option: string, custom: string): string {
+  if (option === "Others") return custom.trim();
+  return option;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+function ActivityDetails() {
   const [showLocationDetails, setShowLocationDetails] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
-    activityName: "",
-    category: "",
-    description: "",
-    type: "",
-    location: "",
-    minimumMembers: "",
-    maximumMembers: "",
-  });
-  
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  // Prefill form with existing data if available
-  useEffect(() => {
-    const activity = getActivityByName("Cooking class"); // Replace with dynamic ID if needed
-    if (activity) {
-      setFormData({
-        activityName: activity.activityName,
-        category: activity.category,
-        description: activity.description,
-        type: activity.type,
-        location: activity.location,
-        minimumMembers: activity.minimumMembers.toString(),
-        maximumMembers: activity.maximumMembers.toString(),
-      });
+  const [formData, setFormData] = useState<FormData>(() => {
+    const draft = getActivityDraft();
+    if (draft) {
+      const { categoryOption, categoryCustom } = decomposeCategory(
+        draft.category ?? "",
+      );
+      return {
+        activityName: draft.activityName ?? "",
+        categoryOption,
+        categoryCustom,
+        description: draft.description ?? "",
+        type: draft.type ?? "",
+        location: draft.location ?? "",
+        minimumMembers:
+          draft.minimumMembers != null ? String(draft.minimumMembers) : "",
+        maximumMembers:
+          draft.maximumMembers != null ? String(draft.maximumMembers) : "",
+      };
     }
-  }, []);
+    return {
+      activityName: "",
+      categoryOption: "",
+      categoryCustom: "",
+      description: "",
+      type: "",
+      location: "",
+      minimumMembers: "",
+      maximumMembers: "",
+    };
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  // Keep the draft in sync whenever form changes (auto-save)
+  useEffect(() => {
+    saveActivityDraft({
+      activityName: formData.activityName,
+      category: composeCategory(
+        formData.categoryOption,
+        formData.categoryCustom,
+      ),
+      description: formData.description,
+      type: formData.type,
+      location: formData.location,
+      minimumMembers: formData.minimumMembers
+        ? Number(formData.minimumMembers)
+        : undefined,
+      maximumMembers: formData.maximumMembers
+        ? Number(formData.maximumMembers)
+        : undefined,
+    } as Partial<Activity>);
+  }, [formData]);
+
+  // ─── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData((prev: FormData) => ({
       ...prev,
-      [name]: value,
+      [name as keyof FormData]: value,
     }));
-    setErrors((prev) => ({ ...prev, [name]: "" })); // Reset the error when the user starts typing
+    setErrors((prev: FormErrors) => ({ ...prev, [name]: "" }));
   };
 
+  const handleCategoryOptionChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const value = e.target.value;
+    setFormData((prev: FormData) => ({
+      ...prev,
+      categoryOption: value,
+      // Clear custom text when switching away from Others
+      categoryCustom: value !== "Others" ? "" : prev.categoryCustom,
+    }));
+    setErrors((prev: FormErrors) => ({
+      ...prev,
+      categoryOption: "",
+      categoryCustom: "",
+    }));
+  };
+
+  const handleCategoryCustomChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setFormData((prev: FormData) => ({
+      ...prev,
+      categoryCustom: e.target.value,
+    }));
+    setErrors((prev: FormErrors) => ({ ...prev, categoryCustom: "" }));
+  };
+
+  // ─── Validation ────────────────────────────────────────────────────────────
+
   const validateForm = (): boolean => {
-    const newErrors: { [key: string]: string } = {};
-    // Check required fields
-    if (!formData.activityName) newErrors.activityName = "Activity Name is required";
-    if (!formData.category) newErrors.category = "Category is required";
-    if (!formData.description) newErrors.description = "Description is required";
-    if (!formData.type) newErrors.type = "Activity Type is required";
-    if (!formData.location) newErrors.location = "Location is required";
-    if (!formData.minimumMembers) newErrors.minimumMembers = "Minimum members is required";
-    if (!formData.maximumMembers) newErrors.maximumMembers = "Maximum members is required";
-    if (parseInt(formData.minimumMembers) >= parseInt(formData.maximumMembers)) {
-      newErrors.members = "Minimum members must be less than maximum members";
+    const newErrors: FormErrors = {};
+
+    if (!formData.activityName.trim())
+      newErrors.activityName = "Activity Name is required.";
+
+    if (!formData.categoryOption) {
+      newErrors.categoryOption = "Please select a category.";
+    } else if (
+      formData.categoryOption === "Others" &&
+      !formData.categoryCustom.trim()
+    ) {
+      newErrors.categoryCustom = "Please specify the category.";
+    }
+
+    if (!formData.description.trim())
+      newErrors.description = "Description is required.";
+
+    if (!formData.type) newErrors.type = "Activity Type is required.";
+
+    if (!formData.location) newErrors.location = "Location type is required.";
+
+    if (!formData.minimumMembers.trim())
+      newErrors.minimumMembers = "Minimum members is required.";
+
+    if (!formData.maximumMembers.trim())
+      newErrors.maximumMembers = "Maximum members is required.";
+
+    const min = parseInt(formData.minimumMembers, 10);
+    const max = parseInt(formData.maximumMembers, 10);
+
+    if (
+      formData.minimumMembers.trim() &&
+      formData.maximumMembers.trim() &&
+      !isNaN(min) &&
+      !isNaN(max) &&
+      min >= max
+    ) {
+      newErrors.members = "Minimum members must be less than maximum members.";
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0; // Return true if no errors
+    return Object.keys(newErrors).length === 0;
   };
+
+  // ─── Submit ────────────────────────────────────────────────────────────────
 
   const nextForm = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    if (validateForm()) {
-      console.log("Final Form Data:", formData);
+    // Persist the validated draft before moving on
+    saveActivityDraft({
+      activityName: formData.activityName.trim(),
+      category: composeCategory(
+        formData.categoryOption,
+        formData.categoryCustom,
+      ),
+      description: formData.description.trim(),
+      type: formData.type,
+      location: formData.location,
+      minimumMembers: Number(formData.minimumMembers),
+      maximumMembers: Number(formData.maximumMembers),
+    });
 
-      // Add new activity to the database
-      addActivity({
-        activityName: formData.activityName,
-        category: formData.category,
-        description: formData.description,
-        type: formData.type,
-        location: formData.location,
-        minimumMembers: Number(formData.minimumMembers),
-        maximumMembers: Number(formData.maximumMembers),
-      });
-
-      setShowLocationDetails(true); // Show location details form
-    }
+    setShowLocationDetails(true);
   };
+
+  // ─── Render ────────────────────────────────────────────────────────────────
+
+  if (showLocationDetails) {
+    return <LocationDetails onBack={() => setShowLocationDetails(false)} />;
+  }
 
   return (
     <div>
-      {showLocationDetails ? (
-        <LocationDetails />
-      ) : (
-        <>
-          <h2 className="font-inter text-xl font-bold text-gray-900 mb-6">
-            Activity Details
-          </h2>
+      <h2 className="font-inter text-xl font-bold text-gray-900 mb-6">
+        Activity Details
+      </h2>
 
-          <form onSubmit={nextForm}>
-            {/* Activity Name */}
-            <div className="mb-6">
-              <label className="block font-semibold text-gray-700 mb-2">
-                Activity Name <span className="text-red-500">*</span>
+      <form onSubmit={nextForm} noValidate>
+        {/* Activity Name */}
+        <div className="mb-6">
+          <label className="block font-semibold text-gray-700 mb-2">
+            Activity Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            className="w-[40rem] p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            type="text"
+            name="activityName"
+            placeholder="Eg: Cooking class in Palo Alto"
+            value={formData.activityName}
+            onChange={handleChange}
+          />
+          {errors.activityName && (
+            <p className="text-red-500 text-sm mt-1">{errors.activityName}</p>
+          )}
+        </div>
+
+        {/* Category Selection */}
+        <fieldset className="mb-6">
+          <legend className="font-semibold text-gray-700 mb-2">
+            Select the best category to describe your activity{" "}
+            <span className="text-red-500">*</span>
+          </legend>
+          <div className="flex flex-col space-y-3">
+            {CATEGORY_OPTIONS.map((cat) => (
+              <label key={cat} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="categoryOption"
+                  value={cat}
+                  checked={formData.categoryOption === cat}
+                  onChange={handleCategoryOptionChange}
+                />
+                {cat}
               </label>
+            ))}
+
+            {/* Others row */}
+            <label className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="categoryOption"
+                  value="Others"
+                  checked={formData.categoryOption === "Others"}
+                  onChange={handleCategoryOptionChange}
+                />
+                Others
+              </div>
+              {formData.categoryOption === "Others" && (
+                <input
+                  className="w-[40rem] p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  name="categoryCustom"
+                  placeholder="Specify the Category"
+                  value={formData.categoryCustom}
+                  onChange={handleCategoryCustomChange}
+                />
+              )}
+            </label>
+          </div>
+          {errors.categoryOption && (
+            <p className="text-red-500 text-sm mt-1">{errors.categoryOption}</p>
+          )}
+          {errors.categoryCustom && (
+            <p className="text-red-500 text-sm mt-1">{errors.categoryCustom}</p>
+          )}
+        </fieldset>
+
+        {/* About this Activity */}
+        <div className="mb-6">
+          <label className="block font-semibold text-gray-700 mb-2">
+            About this Activity <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            className="w-[40rem] h-32 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            name="description"
+            placeholder="Activity Description"
+            value={formData.description}
+            onChange={handleChange}
+          />
+          {errors.description && (
+            <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+          )}
+        </div>
+
+        {/* Activity Type */}
+        <fieldset className="mb-6">
+          <legend className="font-semibold text-gray-700 mb-2">
+            Please select activity type <span className="text-red-500">*</span>
+          </legend>
+          <div className="flex flex-col space-y-3">
+            {(["Indoor", "Outdoor", "Virtual"] as const).map((t) => (
+              <label key={t} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="type"
+                  value={t}
+                  checked={formData.type === t}
+                  onChange={handleChange}
+                />
+                {t}
+              </label>
+            ))}
+          </div>
+          {errors.type && (
+            <p className="text-red-500 text-sm mt-1">{errors.type}</p>
+          )}
+        </fieldset>
+
+        {/* Location Type */}
+        <fieldset className="mb-6">
+          <legend className="font-semibold text-gray-700 mb-2">
+            Please select type of location{" "}
+            <span className="text-red-500">*</span>
+          </legend>
+          <div className="flex flex-col space-y-3">
+            {(["Provider Location", "User Location"] as const).map((loc) => (
+              <label key={loc} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="location"
+                  value={loc}
+                  checked={formData.location === loc}
+                  onChange={handleChange}
+                />
+                {loc}
+              </label>
+            ))}
+          </div>
+          {errors.location && (
+            <p className="text-red-500 text-sm mt-1">{errors.location}</p>
+          )}
+        </fieldset>
+
+        {/* Number of Participants */}
+        <div className="mb-6">
+          <label className="font-semibold text-gray-700 mb-2 block">
+            How many Members can take part in the activity?
+          </label>
+          <div className="flex gap-4">
+            <div className="flex flex-col w-1/2">
               <input
-                className="w-[40rem] p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                type="text"
-                name="activityName"
-                placeholder="Eg: Cooking class in Palo Alto"
-                value={formData.activityName}
+                className="p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="number"
+                name="minimumMembers"
+                placeholder="Minimum members"
+                value={formData.minimumMembers}
                 onChange={handleChange}
+                min={1}
               />
-              {errors.activityName && <p className="text-red-500 text-sm">{errors.activityName}</p>}
+              {errors.minimumMembers && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.minimumMembers}
+                </p>
+              )}
             </div>
-
-            {/* Category Selection */}
-            <fieldset className="mb-6">
-              <legend className="font-semibold text-gray-700 mb-2">
-                Select the best category to describe your activity{" "}
-                <span className="text-red-500">*</span>
-              </legend>
-              <div className="flex flex-col space-y-3">
-                {[
-                  "Adventure & Games",
-                  "Creative Expression",
-                  "Food & Drink",
-                  "Learning & Development",
-                  "Sports and Fitness",
-                  "Volunteering",
-                ].map((category) => (
-                  <label key={category} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="category"
-                      value={category}
-                      checked={formData.category === category}
-                      onChange={handleChange}
-                    />{" "}
-                    {category}
-                  </label>
-                ))}
-                <label className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="category"
-                      value="Others"
-                      checked={formData.category === "Others"}
-                      onChange={handleChange}
-                    />{" "}
-                    Others
-                  </div>
-                  <input
-                    className="w-[40rem] p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    type="text"
-                    name="category"
-                    placeholder="Specify the Category"
-                    value={formData.category === "Others" ? "" : formData.category}
-                    onChange={handleChange}
-                  />
-                </label>
-              </div>
-              {errors.category && <p className="text-red-500 text-sm">{errors.category}</p>}
-            </fieldset>
-
-            {/* About this Activity */}
-            <div className="mb-6">
-              <label className="block font-semibold text-gray-700 mb-2">
-                About this Activity <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                className="w-[40rem] h-32 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                name="description"
-                placeholder="Activity Description"
-                value={formData.description}
+            <div className="flex flex-col w-1/2">
+              <input
+                className="p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="number"
+                name="maximumMembers"
+                placeholder="Maximum members"
+                value={formData.maximumMembers}
                 onChange={handleChange}
-              ></textarea>
-              {errors.description && <p className="text-red-500 text-sm">{errors.description}</p>}
+                min={1}
+              />
+              {errors.maximumMembers && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.maximumMembers}
+                </p>
+              )}
             </div>
+          </div>
+          {errors.members && (
+            <p className="text-red-500 text-sm mt-1">{errors.members}</p>
+          )}
+        </div>
 
-            {/* Activity Type */}
-            <fieldset className="mb-6">
-              <legend className="font-semibold text-gray-700 mb-2">
-                Please select activity type <span className="text-red-500">*</span>
-              </legend>
-              <div className="flex flex-col space-y-3">
-                {["Indoor", "Outdoor", "Virtual"].map((type) => (
-                  <label key={type} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="type"
-                      value={type}
-                      checked={formData.type === type}
-                      onChange={handleChange}
-                    />{" "}
-                    {type}
-                  </label>
-                ))}
-              </div>
-              {errors.type && <p className="text-red-500 text-sm">{errors.type}</p>}
-            </fieldset>
-
-            {/* Location Type */}
-            <fieldset className="mb-6">
-              <legend className="font-semibold text-gray-700 mb-2">
-                Please select type of location <span className="text-red-500">*</span>
-              </legend>
-              <div className="flex flex-col space-y-3">
-                {["Provider Location", "User Location"].map((location) => (
-                  <label key={location} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="location"
-                      value={location}
-                      checked={formData.location === location}
-                      onChange={handleChange}
-                    />{" "}
-                    {location}
-                  </label>
-                ))}
-              </div>
-              {errors.location && <p className="text-red-500 text-sm">{errors.location}</p>}
-            </fieldset>
-
-            {/* Number of Participants */}
-            <div className="mb-6">
-              <label className="font-semibold text-gray-700 mb-2 block">
-                How many Members can take part in the activity?
-              </label>
-              <div className="flex gap-4">
-                <input
-                  className="w-1/2 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  type="number"
-                  name="minimumMembers"
-                  placeholder="Minimum members"
-                  value={formData.minimumMembers}
-                  onChange={handleChange}
-                />
-                <input
-                  className="w-1/2 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  type="number"
-                  name="maximumMembers"
-                  placeholder="Maximum members"
-                  value={formData.maximumMembers}
-                  onChange={handleChange}
-                />
-              </div>
-              {errors.minimumMembers && <p className="text-red-500 text-sm">{errors.minimumMembers}</p>}
-              {errors.members && <p className="text-red-500 text-sm">{errors.members}</p>}
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="bg-black text-white py-3 px-5 rounded-full font-semibold hover:bg-blue-700 transition"
-            >
-              Save and Continue
-            </button>
-          </form>
-        </>
-      )}
+        {/* Submit */}
+        <button
+          type="submit"
+          className="bg-black text-white py-3 px-5 rounded-full font-semibold hover:bg-blue-700 transition"
+        >
+          Save and Continue
+        </button>
+      </form>
     </div>
   );
-};
+}
 
 export default ActivityDetails;
